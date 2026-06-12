@@ -154,16 +154,46 @@ const handleAddSchedule = async () => {
   newScheduleTitle.value = ''
 }
 
+// Smart Reminders States
+const newReminderChannel = ref<'SYSTEM' | 'TELEGRAM' | 'EMAIL'>('TELEGRAM')
+const newReminderContactId = ref('')
+const telegramUsername = ref('@feruza_dev')
+
+// Telegram Simulation Modal States
+const showTelegramModal = ref(false)
+const telegramModalTitle = ref('')
+const telegramModalBody = ref('')
+
+const openTelegramSimulation = (reminder: any) => {
+  telegramModalTitle.value = reminder.title
+  telegramModalBody.value = reminder.message || 'Telegram orqali xabar yuborildi.'
+  showTelegramModal.value = true
+}
+
 const handleAddReminder = async () => {
   if (!newReminderTitle.value) return
+  
+  let finalTitle = newReminderTitle.value
+  let finalMessage = 'Redis va Cron yordamida eslatma yuborildi.'
+
+  if (newReminderContactId.value) {
+    const contact = crmStore.contacts.find(c => c.id === newReminderContactId.value)
+    if (contact) {
+      finalTitle = `Mijoz: ${contact.name} bilan bogʻlanish`
+      finalMessage = `Eslatma: ${newReminderTitle.value}. Telefon: ${contact.phone}`
+    }
+  }
+
   await personalStore.addReminder({
-    title: newReminderTitle.value,
-    message: 'Redis va Cron yordamida eslatma yuborildi',
+    title: finalTitle,
+    message: finalMessage,
     triggerTime: new Date(Date.now() + 5000).toISOString(),
-    channel: 'SYSTEM'
+    channel: newReminderChannel.value
   })
-  notifStore.addSystemNotification('Eslatma oʻrnatildi', newReminderTitle.value, 'info')
+
+  notifStore.addSystemNotification('Eslatma oʻrnatildi', `${finalTitle} (${newReminderChannel.value})`, 'info')
   newReminderTitle.value = ''
+  newReminderContactId.value = ''
 }
 
 const handleCreateCard = async () => {
@@ -459,30 +489,121 @@ const handleDealStageChange = (dealId: string, stage: any) => {
           <div class="flex flex-col gap-6">
             <!-- Smart Reminders -->
             <GlassCard variant="default">
-              <h2 class="text-lg font-bold font-outfit mb-4 text-slate-200">
-                🔔 Smart Reminder
+              <h2 class="text-lg font-bold font-outfit mb-4 text-slate-200 flex items-center justify-between">
+                <span>🔔 Smart Reminder</span>
+                <span class="text-[9px] uppercase tracking-wider text-cyber-cyan bg-cyan-950/45 px-2 py-0.5 rounded border border-cyber-cyan/30">Redis + Cron</span>
               </h2>
-              <div class="space-y-3">
-                <div v-for="r in personalStore.reminders" :key="r.id" class="p-3 rounded-lg border border-white/5 bg-white/[0.01] flex items-center justify-between">
-                  <div>
-                    <h4 class="text-sm font-medium text-white">{{ r.title }}</h4>
-                    <p class="text-xs text-slate-500 mt-0.5">Kanal: {{ r.channel }}</p>
+
+              <!-- Active Reminders List -->
+              <div class="space-y-3 mb-6 max-h-[220px] overflow-y-auto pr-1">
+                <div 
+                  v-for="r in personalStore.reminders" 
+                  :key="r.id" 
+                  class="p-3 rounded-lg border border-white/5 bg-white/[0.01] flex flex-col gap-2"
+                >
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <h4 class="text-sm font-semibold text-white">{{ r.title }}</h4>
+                      <p class="text-xs text-slate-400 mt-1">{{ r.message }}</p>
+                    </div>
+                    <span 
+                      :class="[
+                        'text-[9px] uppercase px-1.5 py-0.5 rounded font-mono',
+                        r.channel === 'TELEGRAM' ? 'bg-cyan-950 text-cyber-cyan border border-cyber-cyan/30' :
+                        r.channel === 'EMAIL' ? 'bg-purple-950 text-cyber-purple border border-cyber-purple/30' :
+                        'bg-white/5 text-slate-400'
+                      ]"
+                    >
+                      {{ r.channel }}
+                    </span>
                   </div>
-                  <span class="w-2 h-2 rounded-full bg-cyber-cyan animate-pulse"></span>
+
+                  <!-- Action triggers for testing -->
+                  <div class="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
+                    <span class="flex items-center gap-1.5 text-[10px] text-slate-500">
+                      <span class="w-1.5 h-1.5 rounded-full bg-cyber-cyan animate-pulse"></span>
+                      Monitoring faol
+                    </span>
+                    
+                    <button 
+                      v-if="r.channel === 'TELEGRAM'"
+                      @click="openTelegramSimulation(r)"
+                      class="text-[10px] px-2.5 py-1 rounded bg-cyber-cyan/15 hover:bg-cyber-cyan/35 text-cyber-cyan border border-cyber-cyan/35 transition flex items-center gap-1 font-bold"
+                    >
+                      💬 Telegramga kirish (Simulatsiya)
+                    </button>
+                  </div>
                 </div>
               </div>
 
+              <!-- Create Reminder Form -->
               <div class="mt-4 border-t border-white/5 pt-4">
-                <div class="flex gap-2">
-                  <input 
-                    v-model="newReminderTitle"
-                    type="text" 
-                    placeholder="Telegramga eslatma"
-                    class="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan flex-1"
-                  />
-                  <button @click="handleAddReminder" class="px-3 py-1.5 rounded-xl border border-cyber-cyan/30 text-cyber-cyan text-xs hover:bg-cyber-cyan/10">
-                    Aktivlashtirish
-                  </button>
+                <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400 mb-3">Yangi Eslatma Oʻrnatish</h3>
+                
+                <div class="space-y-3">
+                  <!-- Channel selector -->
+                  <div>
+                    <label class="block text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Xabarnoma Kanali</label>
+                    <div class="grid grid-cols-3 gap-2">
+                      <button 
+                        v-for="c in ['TELEGRAM', 'EMAIL', 'SYSTEM']" 
+                        :key="c"
+                        @click="newReminderChannel = c as any"
+                        :class="[
+                          'py-1 rounded text-[10px] font-bold border transition',
+                          newReminderChannel === c 
+                            ? 'border-cyber-cyan bg-cyber-cyan/15 text-cyber-cyan' 
+                            : 'border-white/5 bg-white/[0.01] text-slate-400'
+                        ]"
+                      >
+                        {{ c }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Contact select for "Mijoz bilan bog'lanish" -->
+                  <div>
+                    <label class="block text-[10px] text-slate-500 uppercase tracking-wider mb-1">Mijoz bilan bogʻlash (CRM)</label>
+                    <select 
+                      v-model="newReminderContactId" 
+                      class="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan"
+                    >
+                      <option value="">-- Mijoz tanlanmagan --</option>
+                      <option v-for="c in crmStore.contacts" :key="c.id" :value="c.id">
+                        {{ c.name }} ({{ c.rfmSegment }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Telegram handle details -->
+                  <div v-if="newReminderChannel === 'TELEGRAM'">
+                    <label class="block text-[10px] text-slate-500 uppercase tracking-wider mb-1">Telegram foydalanuvchi nomi</label>
+                    <input 
+                      v-model="telegramUsername"
+                      type="text" 
+                      placeholder="@username"
+                      class="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan"
+                    />
+                  </div>
+
+                  <!-- Reminder details -->
+                  <div>
+                    <label class="block text-[10px] text-slate-500 uppercase tracking-wider mb-1">Eslatma mazmuni</label>
+                    <div class="flex gap-2">
+                      <input 
+                        v-model="newReminderTitle"
+                        type="text" 
+                        placeholder="Reja mazmuni..."
+                        class="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan flex-1"
+                      />
+                      <button 
+                        @click="handleAddReminder" 
+                        class="px-3 py-1.5 rounded-xl bg-cyber-cyan text-black font-semibold text-xs hover:opacity-90 transition"
+                      >
+                        Aktivlash
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </GlassCard>
@@ -886,11 +1007,71 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                 </div>
               </div>
             </GlassCard>
+        </div>
+      </div>
+    </div>
+  </main>
+
+    <!-- Telegram Simulation Modal -->
+    <div v-if="showTelegramModal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div class="w-full max-w-md bg-[#0e1621] border border-cyan-500/30 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[500px]">
+        <!-- Telegram Header -->
+        <div class="bg-[#17212b] p-4 flex items-center justify-between border-b border-white/5">
+          <div class="flex items-center gap-3">
+            <!-- Simulated Avatar -->
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center text-white text-lg font-bold">
+              FN
+            </div>
+            <div>
+              <h3 class="text-white font-bold text-sm">Future Net Bot</h3>
+              <p class="text-sky-400 text-xs flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                online
+              </p>
+            </div>
+          </div>
+          <button @click="showTelegramModal = false" class="text-slate-400 hover:text-white text-lg font-bold p-1">
+            ✕
+          </button>
+        </div>
+
+        <!-- Telegram Messages Area -->
+        <div class="flex-1 p-4 overflow-y-auto bg-[#0e1621] space-y-4 flex flex-col justify-end" style="background-image: radial-gradient(rgba(255,255,255,0.015) 1px, transparent 0); background-size: 20px 20px;">
+          <!-- User Username validation message -->
+          <div class="self-start max-w-[80%] rounded-2xl px-4 py-2 text-sm bg-[#182533] text-slate-300">
+            <p class="text-xs text-sky-400 mb-1">Muloqot boshlandi</p>
+            Siz muvaffaqiyatli tarzda <b>{{ telegramUsername }}</b> hisobi orqali eslatmalar botiga ulandingiz.
+          </div>
+
+          <!-- Bot notification template message -->
+          <div class="self-start max-w-[80%] rounded-2xl px-4 py-3.5 text-sm bg-[#182533] text-slate-100 border border-cyan-500/20 shadow-lg">
+            <div class="text-[10px] text-cyan-400 uppercase tracking-widest font-bold mb-2 flex items-center gap-1.5">
+              <span>🔔 Future Net Reminder</span>
+              <span class="w-1 h-1 rounded-full bg-cyan-400"></span>
+              <span>Redis Worker</span>
+            </div>
+            <p class="font-bold text-white mb-2">{{ telegramModalTitle }}</p>
+            <p class="text-xs text-slate-300 leading-relaxed">{{ telegramModalBody }}</p>
+            <div class="text-[9px] text-slate-500 mt-3 text-right">
+              {{ new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) }}
+            </div>
           </div>
         </div>
 
+        <!-- Telegram Footer Input -->
+        <div class="bg-[#17212b] p-4 flex gap-2 border-t border-white/5">
+          <input 
+            type="text" 
+            readonly 
+            value="Xabar yuborish faqat bot orqali amalga oshiriladi..." 
+            class="bg-[#24303f] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-slate-400 flex-1 outline-none cursor-not-allowed"
+          />
+          <button @click="showTelegramModal = false" class="px-4 py-2 bg-sky-500 text-white rounded-xl text-xs font-bold hover:bg-sky-600 transition">
+            Yopish
+          </button>
+        </div>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
