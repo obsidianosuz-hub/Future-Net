@@ -196,6 +196,82 @@ const handleAddReminder = async () => {
   newReminderContactId.value = ''
 }
 
+// CRM Contact Manager State
+const newContactName = ref('')
+const newContactPhone = ref('')
+const newContactEmail = ref('')
+
+const editingContactId = ref('')
+const editingContactName = ref('')
+const editingContactPhone = ref('')
+const editingContactEmail = ref('')
+const showEditContactModal = ref(false)
+
+const handleCreateContact = () => {
+  if (!newContactName.value || !newContactPhone.value) {
+    notifStore.addToast('Ism va telefon raqam majburiy!', 'error')
+    return
+  }
+  crmStore.addContact(newContactName.value, newContactPhone.value, newContactEmail.value)
+  notifStore.addToast('Yangi mijoz qoʻshildi!', 'success')
+  newContactName.value = ''
+  newContactPhone.value = ''
+  newContactEmail.value = ''
+}
+
+const handleStartEditContact = (contact: any) => {
+  editingContactId.value = contact.id
+  editingContactName.value = contact.name
+  editingContactPhone.value = contact.phone
+  editingContactEmail.value = contact.email || ''
+  showEditContactModal.value = true
+}
+
+const handleSaveEditContact = () => {
+  if (!editingContactName.value || !editingContactPhone.value) {
+    notifStore.addToast('Ism va telefon raqam majburiy!', 'error')
+    return
+  }
+  crmStore.updateContact(
+    editingContactId.value,
+    editingContactName.value,
+    editingContactPhone.value,
+    editingContactEmail.value
+  )
+  notifStore.addToast('Mijoz maʻlumotlari tahrirlandi!', 'success')
+  showEditContactModal.value = false
+  editingContactId.value = ''
+}
+
+const handleSendTelegramTestMessage = async () => {
+  if (!personalStore.telegramBotToken || !personalStore.telegramChatId) {
+    notifStore.addToast('Bot Token va Chat ID kiritilishi shart!', 'error')
+    return
+  }
+  
+  try {
+    const url = `https://api.telegram.org/bot${personalStore.telegramBotToken}/sendMessage`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: personalStore.telegramChatId,
+        text: `🔔 *FUTURE NET BOT ALOQASI*:\n\nTabriklaymiz! Botingiz muvaffaqiyatli bogʻlandi.`,
+        parse_mode: 'Markdown'
+      })
+    })
+    
+    if (res.ok) {
+      notifStore.addToast('Test xabari Telegramga yuborildi!', 'success')
+    } else {
+      const data = await res.json()
+      notifStore.addToast(`Xatolik: ${data.description || 'Nomaʻlum'}`, 'error')
+    }
+  } catch (err) {
+    notifStore.addToast('Tarmoq xatoligi yoki notoʻgʻri Token', 'error')
+  }
+}
+
 const handleCreateCard = async () => {
   await cardStore.createCard({
     companyName: cardCompany.value,
@@ -543,7 +619,7 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                 <div class="space-y-3">
                   <!-- Telegram Bot Settings (Real Telegram Messages) -->
                   <div class="border border-cyan-500/20 bg-cyan-950/10 rounded-xl p-3">
-                    <details class="group">
+                    <details class="group" open>
                       <summary class="text-xs font-bold text-cyber-cyan cursor-pointer flex justify-between items-center select-none outline-none">
                         <span>⚙️ Real Telegram Bot Sozlamalari</span>
                         <span class="text-[9px] text-slate-500 group-open:rotate-180 transition-transform">▼</span>
@@ -551,7 +627,7 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                       
                       <div class="space-y-2.5 mt-3 pt-2.5 border-t border-white/5">
                         <p class="text-[10px] text-slate-400 leading-relaxed">
-                          Haqiqiy Telegram xabarnomalarini olish uchun o'zingizning botingizni ulashingiz mumkin.
+                          Haqiqiy Telegram xabarnomalarini olish uchun o'zingizning botingizni ulashingiz shart.
                         </p>
                         <div>
                           <label class="block text-[9px] text-slate-500 uppercase tracking-wider mb-1">Bot Token</label>
@@ -573,9 +649,16 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                             class="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan"
                           />
                         </div>
+                        <button 
+                          @click="handleSendTelegramTestMessage" 
+                          type="button"
+                          class="w-full py-1.5 rounded-lg bg-cyber-cyan text-black font-extrabold text-[10px] uppercase hover:opacity-90 transition shadow-lg shadow-cyan-500/20"
+                        >
+                          ⚡ Telegram Ulanishini Tekshirish (Test Xabar)
+                        </button>
                         <div class="text-[9px] text-slate-500 leading-relaxed border-t border-white/5 pt-2">
                           💡 <b>Qanday faollashtiriladi:</b><br/>
-                          1. Telegramda <a href="https://t.me/BotFather" target="_blank" class="text-cyber-cyan hover:underline">@BotFather</a> orqali yangi bot oching va <b>Token</b>ni kiriting.<br/>
+                          1. Telegramda <a href="https://t.me/BotFather" target="_blank" class="text-cyber-cyan hover:underline">@BotFather</a> orqali bot oching va <b>Token</b>ni kiriting.<br/>
                           2. Botingizga kirib <b>/start</b> buyrug'ini bering.<br/>
                           3. <a href="https://t.me/userinfobot" target="_blank" class="text-cyber-cyan hover:underline">@userinfobot</a> botiga xabar yuborib <b>Chat ID</b>'ingizni oling va kiriting.
                         </div>
@@ -599,6 +682,13 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                       >
                         {{ c }}
                       </button>
+                    </div>
+                    <!-- Warning for Telegram config -->
+                    <div 
+                      v-if="newReminderChannel === 'TELEGRAM' && (!personalStore.telegramBotToken || !personalStore.telegramChatId)"
+                      class="mt-2 p-2 rounded-lg bg-pink-950/20 border border-cyber-pink/30 text-[10px] text-cyber-pink leading-relaxed text-left"
+                    >
+                      🚨 <b>Muhim:</b> Real Telegram eslatmalarini olish uchun yuqoridagi <b>⚙️ Real Telegram Bot Sozlamalari</b> bo'limida Bot Token va Chat ID-ni sozlash shart!
                     </div>
                   </div>
 
@@ -625,6 +715,9 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                       placeholder="@username"
                       class="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan"
                     />
+                    <p class="text-[9px] text-slate-500 mt-1 leading-relaxed text-left">
+                      ⚠️ <b>Eslatma:</b> Telegram botlar faqat foydalanuvchi nomi (@username) orqali to'g'ridan-to'g'ri xabar yubora olmaydi. Real xabarlarni olish uchun yuqoridagi "Real Telegram Bot Sozlamalari" panelini sozlang.
+                    </p>
                   </div>
 
                   <!-- Reminder details -->
@@ -1023,6 +1116,30 @@ const handleDealStageChange = (dealId: string, stage: any) => {
           </div>
 
           <div class="flex flex-col gap-6">
+            <!-- Yangi Mijoz Qoʻshish (Add Client) -->
+            <GlassCard variant="purple">
+              <h2 class="text-lg font-bold font-outfit mb-3 text-cyber-purple flex items-center gap-1.5">
+                <span>👤</span> Yangi Mijoz Qoʻshish
+              </h2>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">Mijoz Ismi (Majburiy)</label>
+                  <input v-model="newContactName" type="text" placeholder="Masalan: Jamshid Karimov" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-purple" />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">Telefon Raqami (Majburiy)</label>
+                  <input v-model="newContactPhone" type="text" placeholder="+998901234567" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-purple" />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">Email (Ixtiyoriy)</label>
+                  <input v-model="newContactEmail" type="text" placeholder="jamshid@mail.com" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-purple" />
+                </div>
+                <button @click="handleCreateContact" class="w-full py-2 rounded-lg bg-cyber-purple text-white font-bold text-xs hover:opacity-90 transition">
+                  Mijozni Saqlash
+                </button>
+              </div>
+            </GlassCard>
+
             <!-- Contact Card & RFM Segment -->
             <GlassCard variant="default">
               <h2 class="text-lg font-bold font-outfit mb-4 text-slate-200">
@@ -1032,7 +1149,14 @@ const handleDealStageChange = (dealId: string, stage: any) => {
               <div class="space-y-3">
                 <div v-for="c in crmStore.contacts" :key="c.id" class="p-3 rounded-lg border border-white/5 bg-white/[0.01]">
                   <div class="flex justify-between items-start">
-                    <h4 class="text-sm font-bold text-white">{{ c.name }}</h4>
+                    <div>
+                      <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                        <span>{{ c.name }}</span>
+                        <button @click="handleStartEditContact(c)" class="text-xs text-cyber-purple hover:opacity-80" title="Tahrirlash">✏️</button>
+                      </h4>
+                      <p class="text-xs text-slate-400 mt-1">{{ c.phone }}</p>
+                      <p v-if="c.email" class="text-[11px] text-slate-500 mt-0.5">{{ c.email }}</p>
+                    </div>
                     <span :class="[
                       'text-[9px] px-1.5 py-0.2 rounded font-semibold',
                       c.rfmSegment === 'TOP' ? 'bg-emerald-950 border border-cyber-emerald/30 text-cyber-emerald' : 'bg-pink-950 border border-cyber-pink/30 text-cyber-pink'
@@ -1040,7 +1164,6 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                       RFM: {{ c.rfmSegment }}
                     </span>
                   </div>
-                  <p class="text-xs text-slate-400 mt-1">{{ c.phone }}</p>
                   
                   <div v-if="c.rfmSegment === 'CHURN_RISK'" class="mt-3 p-2 rounded bg-pink-950/10 border border-cyber-pink/15 text-[10px] text-cyber-pink">
                     🚨 14 kundan ortiq aloqa bo'lmaganligi sababli backend ogohlantiruvchi vazifa ochdi!
@@ -1112,6 +1235,38 @@ const handleDealStageChange = (dealId: string, stage: any) => {
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Edit Contact Modal -->
+    <div v-if="showEditContactModal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <GlassCard variant="purple" class="w-full max-w-md border border-cyber-purple/40 relative">
+        <h3 class="text-lg font-bold font-outfit mb-4 text-cyber-purple flex justify-between items-center">
+          <span>✏️ Mijoz Maʻlumotlarini Tahrirlash</span>
+          <button @click="showEditContactModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Mijoz Ismi</label>
+            <input v-model="editingContactName" type="text" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Telefon Raqami</label>
+            <input v-model="editingContactPhone" type="text" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Email</label>
+            <input v-model="editingContactEmail" type="text" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+          </div>
+          <div class="flex gap-2 justify-end border-t border-white/5 pt-3">
+            <button @click="showEditContactModal = false" class="px-4 py-2 rounded bg-white/5 hover:bg-white/10 text-xs text-white transition">
+              Bekor Qilish
+            </button>
+            <button @click="handleSaveEditContact" class="px-4 py-2 rounded bg-cyber-purple text-white font-bold text-xs hover:opacity-90 transition">
+              Saqlash
+            </button>
+          </div>
+        </div>
+      </GlassCard>
     </div>
   </div>
 </template>

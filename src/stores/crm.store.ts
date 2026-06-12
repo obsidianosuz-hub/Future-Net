@@ -176,6 +176,29 @@ export const useCRMStore = defineStore('crm', () => {
     ]
   }
 
+  const addContact = (name: string, phone: string, email?: string) => {
+    const newContact: Contact = {
+      id: `c-${Math.random().toString(36).substring(2, 9)}`,
+      name,
+      phone,
+      email,
+      rfmSegment: 'PASSIVE',
+      lastInteractionDate: new Date().toISOString(),
+      purchaseHistory: []
+    }
+    contacts.value.push(newContact)
+    return newContact
+  }
+
+  const updateContact = (id: string, name: string, phone: string, email?: string) => {
+    const contact = contacts.value.find((c) => c.id === id)
+    if (contact) {
+      contact.name = name
+      contact.phone = phone
+      if (email !== undefined) contact.email = email
+    }
+  }
+
   return {
     contacts,
     deals,
@@ -188,6 +211,8 @@ export const useCRMStore = defineStore('crm', () => {
     fetchContacts,
     fetchDeals,
     updateDealStage,
-    fetchAdAnalytics
+    fetchAdAnalytics,
+    addContact,
+    updateContact
   }
 })
