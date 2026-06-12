@@ -412,6 +412,158 @@ const handleSelectCard = (card: any) => {
   cardLinkedin.value = li ? li.username : ''
 }
 
+// Education Ibrat Academy portal states
+const eduActiveCategory = ref<'student' | 'teacher'>('student')
+const showAdminSimulator = ref(false)
+const eduUserName = ref('Toshmatov Ali')
+const eduActiveVideoLesson = ref<any>(null)
+const showQuizModal = ref(false)
+const activeQuiz = ref<any>(null)
+const quizAnswers = ref<Record<string, string>>({})
+
+const teacherSelectedSubject = ref('sub-1')
+const teacherCourseTitle = ref('')
+const teacherCourseDesc = ref('')
+const teacherSelectedCourse = ref('')
+const teacherLessonTitle = ref('')
+const teacherVideoUrl = ref('')
+const teacherQuizSelectedCourse = ref('')
+const teacherQuizTitle = ref('')
+const teacherQuestionText = ref('')
+const teacherCorrectAnswer = ref('')
+const teacherWrongAnswer1 = ref('')
+const teacherWrongAnswer2 = ref('')
+
+const approvedCourses = computed(() => {
+  return eduStore.courses.filter(c => eduStore.subjectPermissions[c.subjectId] === 'APPROVED')
+})
+
+const approvedQuizzes = computed(() => {
+  return eduStore.quizzes.filter(q => {
+    const course = eduStore.courses.find(c => c.id === q.courseId)
+    return course && eduStore.subjectPermissions[course.subjectId] === 'APPROVED'
+  })
+})
+
+const handleRequestStudentAccess = () => {
+  if (!eduUserName.value) {
+    notifStore.addToast('Iltimos foydalanuvchi ismingizni kiriting!', 'error')
+    return
+  }
+  eduStore.requestRoleAccess('STUDENT', eduUserName.value)
+  notifStore.addToast('Ruxsatnoma Ultra Adminga yuborildi!', 'info')
+}
+
+const handleRequestTeacherAccess = () => {
+  if (!eduUserName.value) {
+    notifStore.addToast('Iltimos ism sharifingizni kiriting!', 'error')
+    return
+  }
+  eduStore.requestRoleAccess('TEACHER', eduUserName.value)
+  notifStore.addToast('Shartnoma ruxsatnomasi Ultra Adminga yuborildi!', 'info')
+}
+
+const handleSubjectClick = (subject: any) => {
+  const perm = eduStore.subjectPermissions[subject.id]
+  if (perm === 'NONE' || perm === 'REJECTED') {
+    if (!eduUserName.value) {
+      eduUserName.value = 'Foydalanuvchi'
+    }
+    eduStore.requestSubjectAccess(subject.id, eduUserName.value)
+    notifStore.addToast(`"${subject.name}" faniga ruxsatnoma Ultra Adminga yuborildi!`, 'info')
+  } else if (perm === 'PENDING') {
+    notifStore.addToast('Ushbu fanga ruxsatnoma hali kutilmoqda.', 'info')
+  } else if (perm === 'APPROVED') {
+    notifStore.addToast(`"${subject.name}" faniga allaqachon ruxsat berilgan. Quyidan darslarni ko'rishingiz mumkin!`, 'success')
+  }
+}
+
+const handleMarkLessonComplete = async (lessonId: string, courseId: string) => {
+  await eduStore.completeLesson(lessonId, courseId)
+  notifStore.addToast('Dars yakunlandi! +50 XP olindi!', 'success')
+  eduActiveVideoLesson.value = null
+}
+
+const handleStartQuiz = (quiz: any) => {
+  activeQuiz.value = quiz
+  quizAnswers.value = {}
+  showQuizModal.value = true
+}
+
+const handleSolveQuiz = async () => {
+  if (!activeQuiz.value) return
+  let correctCount = 0
+  activeQuiz.value.questions.forEach((q: any) => {
+    const selectedAnsId = quizAnswers.value[q.id]
+    const correctAns = q.answers.find((a: any) => a.isCorrect)
+    if (selectedAnsId === correctAns?.id) {
+      correctCount++
+    }
+  })
+  
+  const pct = Math.round((correctCount / activeQuiz.value.questions.length) * 100)
+  const res = await eduStore.submitQuizAnswers(activeQuiz.value.id, pct)
+  
+  if (res.passed) {
+    notifStore.addToast(`Tabriklaymiz! Testdan oʻtdingiz: ${pct}% (+100 XP)`, 'success')
+  } else {
+    notifStore.addToast(`Afsuski, oʻta olmadingiz: ${pct}%. Oʻtish bali: ${activeQuiz.value.passingScore}%`, 'error')
+  }
+  showQuizModal.value = false
+  activeQuiz.value = null
+}
+
+const handleTeacherCreateCourse = () => {
+  if (!teacherSelectedSubject.value || !teacherCourseTitle.value) {
+    notifStore.addToast('Fan va Kurs nomini kiriting!', 'error')
+    return
+  }
+  const c = eduStore.createCourse(teacherSelectedSubject.value, teacherCourseTitle.value, teacherCourseDesc.value)
+  teacherSelectedCourse.value = c.id
+  notifStore.addToast('Kurs muvaffaqiyatli yaratildi!', 'success')
+  teacherCourseTitle.value = ''
+  teacherCourseDesc.value = ''
+}
+
+const handleTeacherAddLesson = () => {
+  if (!teacherSelectedCourse.value || !teacherLessonTitle.value) {
+    notifStore.addToast('Kurs va Dars nomini kiriting!', 'error')
+    return
+  }
+  eduStore.addLessonToCourse(teacherSelectedCourse.value, teacherLessonTitle.value, teacherVideoUrl.value)
+  notifStore.addToast('Video dars kursga qoʻshildi!', 'success')
+  teacherLessonTitle.value = ''
+  teacherVideoUrl.value = ''
+}
+
+const handleTeacherCreateQuiz = () => {
+  if (!teacherQuizSelectedCourse.value || !teacherQuizTitle.value || !teacherQuestionText.value || !teacherCorrectAnswer.value) {
+    notifStore.addToast('Barcha maydonlarni kiriting!', 'error')
+    return
+  }
+
+  const questions: any[] = [
+    {
+      id: `q-${Math.random().toString(36).substring(2, 9)}`,
+      questionText: teacherQuestionText.value,
+      points: 100,
+      answers: [
+        { id: 'a-c1', answerText: teacherCorrectAnswer.value, isCorrect: true },
+        { id: 'a-w1', answerText: teacherWrongAnswer1.value || 'Variant B', isCorrect: false },
+        { id: 'a-w2', answerText: teacherWrongAnswer2.value || 'Variant C', isCorrect: false }
+      ]
+    }
+  ]
+
+  eduStore.createQuiz(teacherQuizSelectedCourse.value, teacherQuizTitle.value, questions)
+  notifStore.addToast('Test muvaffaqiyatli chop etildi!', 'success')
+  teacherQuizTitle.value = ''
+  teacherQuestionText.value = ''
+  teacherCorrectAnswer.value = ''
+  teacherWrongAnswer1.value = ''
+  teacherWrongAnswer2.value = ''
+}
+
 const handleLessonComplete = (lessonId: string, courseId: string) => {
   eduStore.completeLesson(lessonId, courseId)
   notifStore.addToast('+50 XP olindi!', 'success')
@@ -1101,89 +1253,435 @@ const handleDealStageChange = (dealId: string, stage: any) => {
           </div>
         </div>
 
-        <!-- 3. EDUCATION MODULI -->
-        <div v-if="activeTab === 'education'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="md:col-span-2 flex flex-col gap-6">
+        <!-- 3. EDUCATION MODULI (Ibrat Academy Style) -->
+        <div v-if="activeTab === 'education'" class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <!-- Left side: Category Dashboard (O'qituvchi / O'quvchi) -->
+          <div class="lg:col-span-1 flex flex-col gap-4">
             <GlassCard variant="emerald">
-              <h2 class="text-xl font-bold font-outfit mb-4 text-cyber-emerald flex items-center justify-between">
-                <span>🎓 Kurslar va Darslar</span>
-                <span class="text-xs font-normal text-slate-400">Fanlar limiti yo'q</span>
-              </h2>
+              <h3 class="text-sm font-bold font-outfit uppercase tracking-wider text-cyber-emerald mb-4 text-left">
+                📚 IBRAT ACADEMY DASHBOARD
+              </h3>
+              <div class="flex flex-col gap-2">
+                <!-- O'quvchi category -->
+                <button 
+                  @click="eduActiveCategory = 'student'" 
+                  :class="[
+                    'w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-between',
+                    eduActiveCategory === 'student'
+                      ? 'border-cyber-emerald bg-cyber-emerald/10 text-cyber-emerald'
+                      : 'border-white/5 bg-white/[0.01] text-slate-400 hover:bg-white/[0.02]'
+                  ]"
+                >
+                  <span class="flex items-center gap-2">👨‍🎓 Oʻquvchi (Student)</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/40 text-cyber-emerald border border-cyber-emerald/20 font-bold uppercase font-mono">
+                    {{ eduStore.studentRoleStatus }}
+                  </span>
+                </button>
 
-              <div class="space-y-6">
-                <div v-for="c in eduStore.courses" :key="c.id" class="p-4 rounded-xl border border-white/5 bg-white/[0.01]">
-                  <div class="flex justify-between items-start mb-3">
-                    <h3 class="text-lg font-bold text-white">{{ c.title }}</h3>
-                    <span class="text-xs font-mono text-cyber-emerald">{{ eduStore.courseProgress(c.id) }}% bajarildi</span>
-                  </div>
-                  
-                  <!-- Progress Bar -->
-                  <div class="w-full bg-white/10 h-2 rounded-full overflow-hidden mb-4">
-                    <div 
-                      class="bg-cyber-emerald h-full transition-all duration-500" 
-                      :style="{ width: eduStore.courseProgress(c.id) + '%' }"
-                    />
-                  </div>
-
-                  <!-- Lessons list -->
-                  <div class="space-y-2">
-                    <div 
-                      v-for="l in c.lessons" 
-                      :key="l.id" 
-                      class="flex items-center justify-between p-3 rounded bg-black/40 border border-white/5 hover:border-cyber-emerald/30 transition text-sm"
-                    >
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-500">#{{ l.orderIndex }}</span>
-                        <span>{{ l.title }}</span>
-                      </div>
-                      <button 
-                        @click="handleLessonComplete(l.id, c.id)"
-                        :class="[
-                          'text-xs px-2.5 py-1 rounded transition',
-                          eduStore.studentProfile.completedLessonIds.includes(l.id)
-                            ? 'bg-cyber-emerald/10 text-cyber-emerald border border-cyber-emerald/30'
-                            : 'bg-white/5 hover:bg-white/10 border border-white/10'
-                        ]"
-                      >
-                        {{ eduStore.studentProfile.completedLessonIds.includes(l.id) ? 'Koʻrilgan ✔' : 'Koʻrish' }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <!-- O'qituvchi category -->
+                <button 
+                  @click="eduActiveCategory = 'teacher'" 
+                  :class="[
+                    'w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-between',
+                    eduActiveCategory === 'teacher'
+                      ? 'border-cyber-emerald bg-cyber-emerald/10 text-cyber-emerald'
+                      : 'border-white/5 bg-white/[0.01] text-slate-400 hover:bg-white/[0.02]'
+                  ]"
+                >
+                  <span class="flex items-center gap-2">👩‍🏫 Oʻqituvchi (Teacher)</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-950/40 text-cyber-purple border border-cyber-purple/20 font-bold uppercase font-mono">
+                    {{ eduStore.teacherRoleStatus }}
+                  </span>
+                </button>
               </div>
+            </GlassCard>
+
+            <!-- Ultra Admin Simulator Toggle inside dashboard -->
+            <GlassCard variant="cyan" class="!bg-cyan-950/5">
+              <h3 class="text-xs font-bold font-outfit uppercase tracking-wider text-cyber-cyan mb-2 text-left">
+                🛡️ Admin Simulator
+              </h3>
+              <p class="text-[10px] text-slate-400 mb-3 leading-relaxed text-left">
+                Ruxsatnomalarni tasdiqlash uchun ushbu simulyatordan foydalaning.
+              </p>
+              <button 
+                @click="showAdminSimulator = !showAdminSimulator"
+                :class="[
+                  'w-full py-2 rounded-lg text-xs font-bold transition border',
+                  showAdminSimulator
+                    ? 'bg-cyber-cyan text-black border-cyber-cyan'
+                    : 'bg-transparent text-cyber-cyan border-cyber-cyan/30 hover:bg-cyber-cyan/10'
+                ]"
+              >
+                {{ showAdminSimulator ? 'Simulyatorni Yopish' : 'Simulyatorni Ochish' }}
+              </button>
             </GlassCard>
           </div>
 
-          <div class="flex flex-col gap-6">
-            <!-- Student Profile & Achievements -->
-            <GlassCard variant="default">
-              <h2 class="text-lg font-bold font-outfit mb-4 text-slate-200">
-                👤 Student Profile & Gamification
-              </h2>
-              
-              <div class="text-center py-4 border-b border-white/5">
-                <div class="w-20 h-20 rounded-full border-2 border-cyber-emerald mx-auto flex items-center justify-center text-4xl font-extrabold text-cyber-emerald shadow-neon-emerald">
-                  {{ eduStore.currentLevel }}
-                </div>
-                <h3 class="mt-3 font-bold text-white text-lg">Talaba Profili</h3>
-                <p class="text-sm text-slate-400 mt-1">Level: {{ eduStore.currentLevel }} | {{ eduStore.totalXp }} XP</p>
+          <!-- Right side: Core Content area (O'qituvchi / O'quvchi panel) -->
+          <div class="lg:col-span-3 flex flex-col gap-6">
+
+            <!-- Ultra Admin Simulation Box (if active) -->
+            <div v-if="showAdminSimulator" class="p-4 rounded-2xl border border-cyber-cyan/30 bg-cyan-950/20 backdrop-blur-md">
+              <div class="flex justify-between items-center mb-3">
+                <h3 class="text-sm font-bold text-cyber-cyan flex items-center gap-2">
+                  <span>🛡️ Ultra Admin Soʻrovlar Paneli (Simulyatsiya)</span>
+                </h3>
+                <span class="text-[9px] px-2 py-0.5 rounded bg-cyan-950 border border-cyber-cyan/40 text-cyber-cyan font-bold uppercase font-mono">
+                  Ultra Admin Mode
+                </span>
               </div>
 
-              <!-- Quizzes / Games -->
-              <div class="mt-4">
-                <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Interaktiv Viktorina (Quiz)</h4>
-                <div class="p-3 rounded-xl bg-emerald-950/20 border border-cyber-emerald/20 text-center">
-                  <p class="text-sm text-white font-medium">Vue 3 Pinia sinov testi</p>
-                  <p class="text-xs text-slate-400 mt-1">Muvaffaqiyatli topshirganingiz uchun +100 XP</p>
-                  <button 
-                    @click="eduStore.submitQuizAnswers('quiz-1', 90).then(res => { if(res.passed) notifStore.addToast('Quiz topshirildi! +100 XP', 'success') })" 
-                    class="mt-3 w-full py-1.5 rounded bg-cyber-emerald text-black font-bold text-xs hover:opacity-90"
-                  >
-                    Testni Topsirish
+              <div v-if="eduStore.requests.filter(r => r.status === 'PENDING').length === 0" class="text-xs text-slate-500 py-3 text-center">
+                Tasdiqlash kutilayotgan so'rovlar mavjud emas.
+              </div>
+              <div v-else class="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                <div 
+                  v-for="r in eduStore.requests.filter(r => r.status === 'PENDING')" 
+                  :key="r.id"
+                  class="p-2.5 rounded-xl border border-white/5 bg-black/40 flex justify-between items-center text-xs"
+                >
+                  <div class="text-left">
+                    <p class="font-bold text-white">{{ r.userName }} 
+                      <span class="text-[9px] px-1.5 py-0.2 rounded font-mono ml-2 uppercase font-mono"
+                        :class="[
+                          r.type === 'ROLE_TEACHER' ? 'bg-purple-950 text-cyber-purple border border-cyber-purple/20' :
+                          r.type === 'ROLE_STUDENT' ? 'bg-emerald-950 text-cyber-emerald border border-cyber-emerald/20' :
+                          'bg-cyan-950 text-cyber-cyan border border-cyber-cyan/20'
+                        ]"
+                      >
+                        {{ r.type }}
+                      </span>
+                    </p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ r.details }}</p>
+                  </div>
+                  <div class="flex gap-1.5">
+                    <button @click="eduStore.approveRequest(r.id)" class="px-2.5 py-1 rounded bg-cyber-emerald text-black font-extrabold text-[10px] uppercase hover:opacity-90">
+                      Ruxsat berish
+                    </button>
+                    <button @click="eduStore.rejectRequest(r.id)" class="px-2.5 py-1 rounded bg-cyber-pink text-white font-extrabold text-[10px] uppercase hover:opacity-90">
+                      Rad etish
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- O'QUVCHI (STUDENT) VIEW -->
+            <div v-if="eduActiveCategory === 'student'" class="flex flex-col gap-6">
+              
+              <!-- Check student role access -->
+              <div v-if="eduStore.studentRoleStatus !== 'APPROVED'" class="p-8 rounded-2xl border border-white/10 bg-white/[0.01] text-center">
+                <h3 class="text-lg font-bold text-white mb-2">👨‍🎓 Oʻquvchi Ruxsatnomasi</h3>
+                <p class="text-sm text-slate-400 max-w-md mx-auto mb-6 leading-relaxed">
+                  Kurslarda oʻqish va test topshirish uchun Ultra Admindan oʻquvchi ruxsatnomasini olishingiz shart.
+                </p>
+                <div v-if="eduStore.studentRoleStatus === 'NONE'" class="space-y-4">
+                  <input v-model="eduUserName" type="text" placeholder="Foydalanuvchi ismingizni kiriting..." class="bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyber-emerald max-w-xs mx-auto text-center block" />
+                  <button @click="handleRequestStudentAccess" class="block w-full max-w-xs mx-auto py-2.5 rounded-lg bg-cyber-emerald text-black font-bold text-xs uppercase hover:opacity-90 transition">
+                    Ruxsatnoma Soʻrash
+                  </button>
+                </div>
+                <div v-else-if="eduStore.studentRoleStatus === 'PENDING'" class="text-cyber-cyan text-sm font-semibold animate-pulse">
+                  ⏳ Ruxsatnoma so'ralgan. Ultra Admin simulyatorida so'rovingizni tasdiqlashingiz mumkin!
+                </div>
+                <div v-else-if="eduStore.studentRoleStatus === 'REJECTED'" class="text-cyber-pink text-sm font-semibold">
+                  ❌ Ruxsatnoma rad etilgan. Qayta so'rov yuborishingiz mumkin.
+                  <button @click="handleRequestStudentAccess" class="mt-4 block w-full max-w-xs mx-auto py-2.5 rounded-lg bg-cyber-emerald text-black font-bold text-xs uppercase hover:opacity-90">
+                    Qayta so'rash
                   </button>
                 </div>
               </div>
-            </GlassCard>
+
+              <!-- Main Student Portal (if approved) -->
+              <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Part 1 & 2: Available subjects + Lessons -->
+                <div class="md:col-span-2 flex flex-col gap-6">
+                  
+                  <!-- Part 1: Subjects Table (Fanlar jadvali) -->
+                  <GlassCard variant="emerald">
+                    <h3 class="text-base font-bold font-outfit uppercase tracking-wider text-cyber-emerald mb-3 text-left">
+                      📚 1-qism: Ibrat Academy Fanlar Katalogi (Subjects)
+                    </h3>
+                    <p class="text-xs text-slate-400 mb-4 text-left leading-relaxed">
+                      Fandan foydalanish uchun ustiga bosing va Ultra Admildan ruxsatnoma oling. Ruxsat olingandan keyin video darslar va testlar ochiladi.
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div 
+                        v-for="s in eduStore.subjects" 
+                        :key="s.id"
+                        @click="handleSubjectClick(s)"
+                        :class="[
+                          'p-4 rounded-xl border transition-all cursor-pointer text-left relative overflow-hidden group',
+                          eduStore.subjectPermissions[s.id] === 'APPROVED' ? 'border-cyber-emerald/40 bg-emerald-950/15 shadow-[0_0_10px_rgba(16,185,129,0.15)]' :
+                          eduStore.subjectPermissions[s.id] === 'PENDING' ? 'border-cyber-cyan/40 bg-cyan-950/15 animate-pulse' :
+                          'border-white/5 bg-white/[0.01] hover:border-white/20 hover:bg-white/[0.02]'
+                        ]"
+                      >
+                        <div class="flex items-center gap-3">
+                          <span class="text-2xl">{{ s.icon }}</span>
+                          <div>
+                            <h4 class="text-sm font-bold text-white">{{ s.name }}</h4>
+                            <p class="text-[10px] text-slate-400 mt-1 line-clamp-1">{{ s.description }}</p>
+                          </div>
+                        </div>
+                        
+                        <!-- Status Badge -->
+                        <div class="mt-3 flex justify-between items-center text-[9px] uppercase tracking-wider font-mono">
+                          <span class="text-slate-500">Holat:</span>
+                          <span 
+                            :class="[
+                              'font-bold',
+                              eduStore.subjectPermissions[s.id] === 'APPROVED' ? 'text-cyber-emerald' :
+                              eduStore.subjectPermissions[s.id] === 'PENDING' ? 'text-cyber-cyan' :
+                              'text-slate-400'
+                            ]"
+                          >
+                            {{ eduStore.subjectPermissions[s.id] === 'APPROVED' ? 'Ruxsat berilgan' :
+                               eduStore.subjectPermissions[s.id] === 'PENDING' ? 'Tasdiq kutilmoqda' :
+                               'Qulflangan (Ruxsat soʻrash)' }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </GlassCard>
+
+                  <!-- Part 2: Active online lessons (approved subjects only) -->
+                  <GlassCard variant="emerald">
+                    <h3 class="text-base font-bold font-outfit uppercase tracking-wider text-cyber-emerald mb-3 text-left">
+                      🎥 2-qism: Video darslar & Online darslar
+                    </h3>
+                    
+                    <!-- Filter approved subjects courses -->
+                    <div class="space-y-4 text-left">
+                      <div v-if="approvedCourses.length === 0" class="text-xs text-slate-500 py-6 text-center leading-relaxed">
+                        Sizda hali ruxsat berilgan faol fanlar mavjud emas. Tepadagi fanlar jadvalini bosing va Ultra Admildan ruxsat oling!
+                      </div>
+                      
+                      <div v-else v-for="c in approvedCourses" :key="c.id" class="p-4 rounded-xl border border-white/5 bg-black/40">
+                        <div class="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 class="text-sm font-bold text-white">{{ c.title }}</h4>
+                            <p class="text-[10px] text-slate-400">{{ c.description }}</p>
+                          </div>
+                          <span class="text-xs font-mono text-cyber-emerald bg-emerald-950/40 px-2 py-0.5 rounded border border-cyber-emerald/20">
+                            {{ eduStore.courseProgress(c.id) }}% completed
+                          </span>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mb-3">
+                          <div class="bg-cyber-emerald h-full transition-all duration-300" :style="{ width: eduStore.courseProgress(c.id) + '%' }"></div>
+                        </div>
+
+                        <!-- Video Player Box Simulation -->
+                        <div v-if="eduActiveVideoLesson && eduActiveVideoLesson.courseId === c.id" class="mb-4 rounded-xl border border-cyber-emerald/30 overflow-hidden bg-black shadow-neon-emerald/20">
+                          <div class="relative pt-[56.25%]">
+                            <iframe 
+                              class="absolute top-0 left-0 w-full h-full"
+                              :src="eduActiveVideoLesson.videoUrl"
+                              title="YouTube video player" 
+                              frameborder="0" 
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                              allowfullscreen
+                            ></iframe>
+                          </div>
+                          <div class="p-3 bg-black/90 flex justify-between items-center">
+                            <span class="text-xs font-bold text-white">{{ eduActiveVideoLesson.title }}</span>
+                            <button @click="handleMarkLessonComplete(eduActiveVideoLesson.id, c.id)" class="px-3 py-1 rounded bg-cyber-emerald text-black font-extrabold text-[10px] uppercase hover:opacity-90 transition">
+                              Darsni Tamomlash (+50 XP)
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Lessons list -->
+                        <div class="grid grid-cols-1 gap-2 mt-2">
+                          <div 
+                            v-for="l in c.lessons" 
+                            :key="l.id"
+                            class="flex items-center justify-between p-2 rounded bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-cyber-emerald/20 transition text-xs"
+                          >
+                            <span class="font-medium text-slate-300">#{{ l.orderIndex }} - {{ l.title }}</span>
+                            <div class="flex items-center gap-2">
+                              <button @click="eduActiveVideoLesson = { ...l, courseId: c.id }" class="text-[10px] px-2 py-0.5 rounded bg-cyber-emerald/15 hover:bg-cyber-emerald/35 text-cyber-emerald border border-cyber-emerald/25 transition font-bold">
+                                Video Dars 📺
+                              </button>
+                              <span v-if="eduStore.studentProfile.completedLessonIds.includes(l.id)" class="text-[10px] text-cyber-emerald bg-emerald-950 px-1.5 py-0.5 rounded font-bold border border-cyber-emerald/20 animate-pulse">
+                                Yakunlandi ✔
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </GlassCard>
+                </div>
+
+                <!-- Part 3: Student Profile & Achievements and Test Solving -->
+                <div class="flex flex-col gap-6">
+                  <GlassCard variant="default">
+                    <h3 class="text-base font-bold font-outfit uppercase tracking-wider text-slate-200 mb-3 text-left">
+                      🎯 3-qism: Test topshirish & Profil
+                    </h3>
+                    
+                    <div class="text-center py-4 border-b border-white/5">
+                      <div class="w-16 h-16 rounded-full border-2 border-cyber-emerald mx-auto flex items-center justify-center text-3xl font-extrabold text-cyber-emerald shadow-neon-emerald animate-pulse">
+                        {{ eduStore.currentLevel }}
+                      </div>
+                      <h4 class="mt-3 font-bold text-white text-sm">Oʻquvchi Darajasi</h4>
+                      <p class="text-xs text-slate-400 mt-1">Level: {{ eduStore.currentLevel }} | {{ eduStore.totalXp }} XP</p>
+                    </div>
+
+                    <!-- Quizzes/Tests available for approved courses -->
+                    <div class="mt-4">
+                      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 text-left">Faqat ruxsat berilgan testlar:</h4>
+                      
+                      <div v-if="approvedQuizzes.length === 0" class="text-xs text-slate-500 py-4 text-center">
+                        Ruxsat berilgan fanlar bo'yicha testlar mavjud emas.
+                      </div>
+                      
+                      <div v-else class="space-y-3">
+                        <div v-for="q in approvedQuizzes" :key="q.id" class="p-3 rounded-xl bg-emerald-950/10 border border-cyber-emerald/20 text-left">
+                          <p class="text-xs text-white font-medium">{{ q.title }}</p>
+                          <p class="text-[10px] text-slate-400 mt-1">Savollar soni: {{ q.questions.length }} | O'tish bali: {{ q.passingScore }}%</p>
+                          
+                          <!-- Test solving mockup trigger -->
+                          <div class="mt-3">
+                            <button 
+                              @click="handleStartQuiz(q)" 
+                              class="w-full py-1.5 rounded bg-cyber-emerald text-black font-extrabold text-[10px] uppercase hover:opacity-90"
+                            >
+                              Testni Topsirish (+100 XP)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Badges achieved -->
+                    <div class="mt-5 border-t border-white/5 pt-3 text-left">
+                      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Eski yutuqlar (Badges):</h4>
+                      <div v-if="eduStore.studentProfile.earnedBadges.length === 0" class="text-[10px] text-slate-500">Hali nishonlar yo'q. Test topshirib nishonlarni qo'lga kiriting!</div>
+                      <div v-else class="flex flex-wrap gap-2">
+                        <div 
+                          v-for="b in eduStore.studentProfile.earnedBadges" 
+                          :key="b.id"
+                          class="flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] text-slate-300"
+                          :title="b.description"
+                        >
+                          <span>{{ b.iconUrl }}</span>
+                          <span>{{ b.name }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </GlassCard>
+                </div>
+              </div>
+            </div>
+
+            <!-- O'QITUVCHI (TEACHER) VIEW -->
+            <div v-if="eduActiveCategory === 'teacher'" class="flex flex-col gap-6">
+              <!-- Check teacher role access -->
+              <div v-if="eduStore.teacherRoleStatus !== 'APPROVED'" class="p-8 rounded-2xl border border-white/10 bg-white/[0.01] text-center">
+                <h3 class="text-lg font-bold text-white mb-2">👩‍🏫 Oʻqituvchilar Shartnomasi</h3>
+                <p class="text-sm text-slate-400 max-w-md mx-auto mb-6 leading-relaxed">
+                  Platformada video darslar yuklash, kurs va dars tuzilmasini yaratish hamda testlar qoʻshish uchun Ultra Admin bilan shartnoma ruxsatnomasini tasdiqlashingiz kerak.
+                </p>
+                <div v-if="eduStore.teacherRoleStatus === 'NONE'" class="space-y-4">
+                  <input v-model="eduUserName" type="text" placeholder="Ism sharifingizni kiriting..." class="bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple max-w-xs mx-auto text-center block" />
+                  <button @click="handleRequestTeacherAccess" class="block w-full max-w-xs mx-auto py-2.5 rounded-lg bg-cyber-purple text-white font-bold text-xs uppercase hover:opacity-90 transition">
+                    Shartnoma va Ruxsat Soʻrash
+                  </button>
+                </div>
+                <div v-else-if="eduStore.teacherRoleStatus === 'PENDING'" class="text-cyber-cyan text-sm font-semibold animate-pulse">
+                  ⏳ Ultra Admindan shartnoma tasdig'i kutilmoqda. Yuqoridagi "🛡️ Admin Simulator" panelini ochib, ruxsat berishingiz mumkin!
+                </div>
+                <div v-else-if="eduStore.teacherRoleStatus === 'REJECTED'" class="text-cyber-pink text-sm font-semibold">
+                  ❌ Shartnoma ruxsatnomasi rad etilgan.
+                  <button @click="handleRequestTeacherAccess" class="mt-4 block w-full max-w-xs mx-auto py-2.5 rounded-lg bg-cyber-purple text-white font-bold text-xs uppercase hover:opacity-90">
+                    Qayta so'rash
+                  </button>
+                </div>
+              </div>
+
+              <!-- Main Teacher Portal (if approved) -->
+              <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Course & Lesson Creator -->
+                <GlassCard variant="purple">
+                  <h3 class="text-base font-bold font-outfit uppercase tracking-wider text-cyber-purple mb-4 text-left">
+                    🎥 Video Kurs va Dars Joylash (Video Uploader)
+                  </h3>
+                  
+                  <div class="space-y-4 text-left">
+                    <div>
+                      <label class="block text-xs text-slate-400 mb-1">Fanni tanlang</label>
+                      <select v-model="teacherSelectedSubject" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple">
+                        <option v-for="s in eduStore.subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
+                      </select>
+                    </div>
+
+                    <!-- Create new Course -->
+                    <div class="p-3 rounded-lg border border-white/5 bg-white/[0.01]">
+                      <h4 class="text-xs font-bold text-cyber-purple mb-2">Yangi Kurs Yaratish</h4>
+                      <div class="space-y-2">
+                        <input v-model="teacherCourseTitle" type="text" placeholder="Kurs nomi (Masalan: Elementray A1)" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <input v-model="teacherCourseDesc" type="text" placeholder="Kurs tavsifi..." class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <button @click="handleTeacherCreateCourse" class="w-full py-1.5 rounded bg-cyber-purple text-white font-bold text-xs">Kursni Yaratish</button>
+                      </div>
+                    </div>
+
+                    <!-- Add lesson to course -->
+                    <div class="p-3 rounded-lg border border-white/5 bg-white/[0.01]">
+                      <h4 class="text-xs font-bold text-cyber-purple mb-2">Kursga Video Dars Qoʻshish</h4>
+                      <div class="space-y-2">
+                        <label class="block text-[10px] text-slate-500">Kursni tanlang</label>
+                        <select v-model="teacherSelectedCourse" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                          <option v-for="c in eduStore.courses.filter(x => x.subjectId === teacherSelectedSubject)" :key="c.id" :value="c.id">{{ c.title }}</option>
+                        </select>
+                        <input v-model="teacherLessonTitle" type="text" placeholder="Dars nomi (Masalan: 1-dars: Alphabet)" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <input v-model="teacherVideoUrl" type="text" placeholder="YouTube Video URL Embed (Masalan: https://...)" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <button @click="handleTeacherAddLesson" class="w-full py-1.5 rounded bg-cyber-purple text-white font-bold text-xs">Video Darsni Yuklash</button>
+                      </div>
+                    </div>
+                  </div>
+                </GlassCard>
+
+                <!-- Test / Quiz Creator -->
+                <GlassCard variant="purple">
+                  <h3 class="text-base font-bold font-outfit uppercase tracking-wider text-cyber-purple mb-4 text-left">
+                    📝 Oʻquvchilar uchun Test/Quiz yaratish
+                  </h3>
+                  
+                  <div class="space-y-4 text-left">
+                    <div>
+                      <label class="block text-xs text-slate-400 mb-1">Kursni tanlang</label>
+                      <select v-model="teacherQuizSelectedCourse" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple">
+                        <option v-for="c in eduStore.courses" :key="c.id" :value="c.id">{{ c.title }}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label class="block text-xs text-slate-400 mb-1">Test sarlavhasi</label>
+                      <input v-model="teacherQuizTitle" type="text" placeholder="Masalan: Vue 3 Modul Test" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+                    </div>
+
+                    <!-- Simple mockup question generator -->
+                    <div class="p-3 rounded-lg border border-white/5 bg-white/[0.01]">
+                      <h4 class="text-xs font-bold text-cyber-purple mb-2">Savol va Javoblar</h4>
+                      <div class="space-y-2">
+                        <input v-model="teacherQuestionText" type="text" placeholder="Savol matni (Masalan: NestJS nima?)" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <input v-model="teacherCorrectAnswer" type="text" placeholder="Toʻgʻri javob variant" class="w-full bg-black/40 border border-emerald-500/20 bg-emerald-950/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <input v-model="teacherWrongAnswer1" type="text" placeholder="Notoʻgʻri javob variant 1" class="w-full bg-black/40 border border-pink-500/20 bg-pink-950/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <input v-model="teacherWrongAnswer2" type="text" placeholder="Notoʻgʻri javob variant 2" class="w-full bg-black/40 border border-pink-500/20 bg-pink-950/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+                        <button @click="handleTeacherCreateQuiz" class="w-full py-1.5 rounded bg-cyber-purple text-white font-bold text-xs uppercase font-bold">Testni Saqlash va Chop etish</button>
+                      </div>
+                    </div>
+                  </div>
+                </GlassCard>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1503,6 +2001,47 @@ const handleDealStageChange = (dealId: string, stage: any) => {
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Quiz/Test Modal -->
+    <div v-if="showQuizModal && activeQuiz" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <GlassCard variant="emerald" class="w-full max-w-lg border border-cyber-emerald/40 relative">
+        <h3 class="text-lg font-bold font-outfit mb-4 text-cyber-emerald flex justify-between items-center">
+          <span>📝 {{ activeQuiz.title }}</span>
+          <button @click="showQuizModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
+        </h3>
+        
+        <div class="space-y-6 max-h-[400px] overflow-y-auto pr-1">
+          <div v-for="(q, qIndex) in activeQuiz.questions" :key="q.id" class="p-4 rounded-xl border border-white/5 bg-black/40 text-left">
+            <p class="text-sm font-bold text-white mb-3">{{ qIndex + 1 }}. {{ q.questionText }}</p>
+            <div class="space-y-2">
+              <label 
+                v-for="a in q.answers" 
+                :key="a.id"
+                class="flex items-center gap-3 p-2.5 rounded-lg border border-white/10 bg-white/[0.01] hover:bg-white/[0.03] cursor-pointer transition text-xs"
+              >
+                <input 
+                  type="radio" 
+                  :name="q.id" 
+                  :value="a.id" 
+                  v-model="quizAnswers[q.id]"
+                  class="accent-cyber-emerald"
+                />
+                <span class="text-slate-300">{{ a.answerText }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 justify-end border-t border-white/5 pt-3 mt-4">
+          <button @click="showQuizModal = false" class="px-4 py-2 rounded bg-white/5 hover:bg-white/10 text-xs text-white transition">
+            Bekor Qilish
+          </button>
+          <button @click="handleSolveQuiz" class="px-4 py-2 rounded bg-cyber-emerald text-black font-extrabold text-xs hover:opacity-90 transition">
+            Testni Yakunlash (Topsirish)
+          </button>
+        </div>
+      </GlassCard>
     </div>
 
     <!-- Edit Contact Modal -->
