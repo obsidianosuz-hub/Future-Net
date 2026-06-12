@@ -28,6 +28,84 @@ const newScheduleTitle = ref('')
 const newReminderTitle = ref('')
 const simulatedBarcode = ref('4780012345678')
 
+// Personal Calendar State
+const selectedDate = ref<Date>(new Date())
+const newScheduleTime = ref('09:00')
+
+const monthNamesUz = [
+  'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+  'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+]
+
+const dayNamesUz = [
+  { short: 'Ya', full: 'Yakshanba' },
+  { short: 'Du', full: 'Dushanba' },
+  { short: 'Se', full: 'Seshanba' },
+  { short: 'Ch', full: 'Chorshanba' },
+  { short: 'Pa', full: 'Payshanba' },
+  { short: 'Ju', full: 'Juma' },
+  { short: 'Sha', full: 'Shanba' }
+]
+
+// Hozirgi haftadagi kunlarni aniqlash (Dushanba - Yakshanba)
+const currentWeekDays = computed(() => {
+  const current = new Date(selectedDate.value)
+  const day = current.getDay()
+  const distanceToMonday = day === 0 ? -6 : 1 - day
+  const monday = new Date(current)
+  monday.setDate(current.getDate() + distanceToMonday)
+
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    const formatted = d.toISOString().split('T')[0]
+    
+    const hasPlans = personalStore.schedules.some((s) => {
+      const scheduleDate = new Date(s.startTime).toISOString().split('T')[0]
+      return scheduleDate === formatted
+    })
+
+    const dayIndex = d.getDay()
+    days.push({
+      name: dayNamesUz[dayIndex].short,
+      fullName: dayNamesUz[dayIndex].full,
+      date: d,
+      dayNumber: d.getDate(),
+      formattedDate: formatted,
+      hasPlans
+    })
+  }
+  return days
+})
+
+// Hozirgi tanlangan oy va yil nomi
+const currentMonthYear = computed(() => {
+  const m = selectedDate.value.getMonth()
+  const y = selectedDate.value.getFullYear()
+  return `${monthNamesUz[m]}, ${y}`
+})
+
+// Tanlangan kunga tegishli rejalar
+const filteredSchedules = computed(() => {
+  const formattedSelected = selectedDate.value.toISOString().split('T')[0]
+  return personalStore.schedules.filter((s) => {
+    const scheduleDate = new Date(s.startTime).toISOString().split('T')[0]
+    return scheduleDate === formattedSelected
+  }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+})
+
+const handleSelectDay = (date: Date) => {
+  selectedDate.value = date
+}
+
+const changeWeek = (direction: 'prev' | 'next') => {
+  const current = new Date(selectedDate.value)
+  const offset = direction === 'next' ? 7 : -7
+  current.setDate(current.getDate() + offset)
+  selectedDate.value = current
+}
+
 // Card Builder Temporary State
 const cardCompany = ref('Future Net Corp')
 const cardPhone = ref('+998991112233')
@@ -59,12 +137,19 @@ onMounted(() => {
 // Simulated Actions
 const handleAddSchedule = async () => {
   if (!newScheduleTitle.value) return
+  
+  const dateStr = selectedDate.value.toISOString().split('T')[0]
+  const combinedDateTimeStr = `${dateStr}T${newScheduleTime.value}:00`
+  const startTime = new Date(combinedDateTimeStr).toISOString()
+  const endTime = new Date(new Date(startTime).getTime() + 3600000).toISOString()
+  
   await personalStore.addSchedule({
     title: newScheduleTitle.value,
-    startTime: new Date(Date.now() + 3600000).toISOString(),
-    endTime: new Date(Date.now() + 7200000).toISOString(),
+    startTime,
+    endTime,
     isAllDay: false
   })
+  
   notifStore.addToast('Yangi reja yaratildi', 'success')
   newScheduleTitle.value = ''
 }
@@ -265,35 +350,106 @@ const handleDealStageChange = (dealId: string, stage: any) => {
           <div class="md:col-span-2 flex flex-col gap-6">
             <GlassCard variant="cyan" :neon-glow="true">
               <h2 class="text-xl font-bold font-outfit mb-4 text-cyber-cyan flex items-center gap-2">
-                <span>📅</span> Shaxsiy Taym-Menejment Jadvallari
+                <span>📅</span> Shaxsiy Taym-Menejment
               </h2>
+
+              <!-- Calendar Month & Navigation -->
+              <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
+                <button 
+                  @click="changeWeek('prev')" 
+                  class="px-3 py-1 rounded bg-white/5 border border-white/10 hover:border-cyber-cyan/50 text-slate-300 text-xs font-mono transition"
+                >
+                  ◀ Oʻtgan hafta
+                </button>
+                <h3 class="text-base font-bold font-outfit text-cyber-cyan tracking-wider uppercase">
+                  {{ currentMonthYear }}
+                </h3>
+                <button 
+                  @click="changeWeek('next')" 
+                  class="px-3 py-1 rounded bg-white/5 border border-white/10 hover:border-cyber-cyan/50 text-slate-300 text-xs font-mono transition"
+                >
+                  Keyingi hafta ▶
+                </button>
+              </div>
+
+              <!-- Weekly Days Grid -->
+              <div class="grid grid-cols-7 gap-2 mb-6">
+                <div 
+                  v-for="day in currentWeekDays" 
+                  :key="day.formattedDate"
+                  @click="handleSelectDay(day.date)"
+                  :class="[
+                    'p-3 text-center rounded-xl border cursor-pointer transition-all duration-300 relative',
+                    selectedDate.toISOString().split('T')[0] === day.formattedDate
+                      ? 'border-cyber-cyan bg-cyber-cyan/15 shadow-neon-cyan' 
+                      : 'border-white/5 bg-white/[0.01] hover:border-white/15'
+                  ]"
+                >
+                  <span class="text-[10px] uppercase font-mono text-slate-400 block mb-1">{{ day.name }}</span>
+                  <span class="text-lg font-extrabold block text-white">{{ day.dayNumber }}</span>
+                  
+                  <!-- Indicator dot if there are plans on this day -->
+                  <span 
+                    v-if="day.hasPlans" 
+                    class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyber-cyan shadow-[0_0_8px_#00f0ff] animate-pulse"
+                  />
+                </div>
+              </div>
+
+              <!-- Schedules for Selected Day -->
               <div class="space-y-4">
-                <div v-for="s in personalStore.schedules" :key="s.id" class="p-4 rounded-xl border border-white/5 bg-white/[0.01]">
-                  <div class="flex justify-between items-start">
-                    <h3 class="font-semibold text-white">{{ s.title }}</h3>
-                    <span class="text-xs px-2 py-0.5 rounded bg-cyan-950 border border-cyber-cyan/30 text-cyber-cyan">
-                      Faol
-                    </span>
+                <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400 border-b border-white/5 pb-2">
+                  Kunlik Rejalar: <span class="text-cyber-cyan">{{ selectedDate.getDate() }}-{{ monthNamesUz[selectedDate.getMonth()] }}</span>
+                </h3>
+
+                <div v-if="filteredSchedules.length > 0" class="space-y-3">
+                  <div 
+                    v-for="s in filteredSchedules" 
+                    :key="s.id" 
+                    class="p-4 rounded-xl border border-cyber-cyan/20 bg-cyan-950/15 flex items-center justify-between"
+                  >
+                    <div>
+                      <h4 class="font-bold text-white text-sm">{{ s.title }}</h4>
+                      <p class="text-xs text-slate-400 mt-1">{{ s.description || 'Tavsif berilmagan' }}</p>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-xs px-2 py-0.5 rounded bg-cyan-900/40 border border-cyber-cyan/30 text-cyber-cyan font-mono">
+                        {{ new Date(s.startTime).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) }}
+                      </span>
+                    </div>
                   </div>
-                  <p class="text-sm text-slate-400 mt-1">{{ s.description || 'Tavsifsiz' }}</p>
-                  <div class="flex items-center gap-2 mt-3 text-xs text-slate-500">
-                    <span>⏰</span> <span>{{ new Date(s.startTime).toLocaleString('uz-UZ') }}</span>
-                  </div>
+                </div>
+
+                <div v-else class="text-center py-6 border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                  <p class="text-xs text-slate-500">Ushbu kunga hech qanday reja kiritilmagan.</p>
                 </div>
               </div>
 
               <!-- Create Schedule Form -->
               <div class="mt-6 border-t border-white/5 pt-4">
-                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Yangi Reja Qoʻshish</label>
-                <div class="flex gap-2">
+                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">
+                  Yangi Reja Qoʻshish (Kop kun: {{ selectedDate.getDate() }}-{{ monthNamesUz[selectedDate.getMonth()] }})
+                </label>
+                <div class="flex gap-2 flex-wrap sm:flex-nowrap">
                   <input 
                     v-model="newScheduleTitle"
                     type="text" 
-                    placeholder="Masalan: backend optimizatsiya"
-                    class="bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cyber-cyan flex-1"
+                    placeholder="Reja mazmuni (Masalan: NestJS meeting)"
+                    class="bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cyber-cyan flex-1 min-w-[200px]"
                   />
-                  <button @click="handleAddSchedule" class="px-4 py-2 rounded-xl bg-cyber-cyan text-black font-semibold text-sm hover:opacity-90">
-                    Qoʻshish
+                  
+                  <!-- Time Picker input -->
+                  <input 
+                    v-model="newScheduleTime"
+                    type="time" 
+                    class="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-cyan w-32"
+                  />
+
+                  <button 
+                    @click="handleAddSchedule" 
+                    class="px-4 py-2 rounded-xl bg-cyber-cyan text-black font-semibold text-sm hover:opacity-90 transition w-full sm:w-auto shrink-0"
+                  >
+                    Rejalashtirish
                   </button>
                 </div>
               </div>
