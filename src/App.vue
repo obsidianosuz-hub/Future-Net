@@ -111,6 +111,70 @@ const cardCompany = ref('Future Net Corp')
 const cardPhone = ref('+998991112233')
 const cardService = ref('Enterprise Cloud Integration')
 const cardSlug = ref('future-net-corp')
+const cardTemplate = ref('cyber-purple')
+const cardTelegram = ref('future_net_tg')
+const cardFacebook = ref('future_net_fb')
+const cardInstagram = ref('future_net_inst')
+const cardLinkedin = ref('future_net_in')
+
+const templateClasses = computed(() => {
+  switch (cardTemplate.value) {
+    case 'cyber-purple':
+      return {
+        cardBg: 'bg-gradient-to-b from-[#1c0024]/85 via-[#0a000d]/95 to-black',
+        border: 'border-cyber-purple/40',
+        shadow: 'shadow-[0_0_30px_rgba(217,70,239,0.25)]',
+        badge: 'bg-purple-950/50 text-cyber-purple border-cyber-purple/30',
+        avatarBg: 'from-cyber-purple to-purple-800 shadow-[0_0_15px_rgba(217,70,239,0.5)]',
+        button: 'bg-cyber-purple/10 border-cyber-purple/30 text-cyber-purple hover:bg-cyber-purple/20'
+      }
+    case 'cyber-cyan':
+      return {
+        cardBg: 'bg-gradient-to-b from-[#00222b]/85 via-[#000d12]/95 to-black',
+        border: 'border-cyber-cyan/40',
+        shadow: 'shadow-[0_0_30px_rgba(6,182,212,0.25)]',
+        badge: 'bg-cyan-950/50 text-cyber-cyan border-cyber-cyan/30',
+        avatarBg: 'from-cyber-cyan to-cyan-800 shadow-[0_0_15px_rgba(6,182,212,0.5)]',
+        button: 'bg-cyber-cyan/10 border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/20'
+      }
+    case 'cyber-emerald':
+      return {
+        cardBg: 'bg-gradient-to-b from-[#002411]/85 via-[#000d05]/95 to-black',
+        border: 'border-cyber-emerald/40',
+        shadow: 'shadow-[0_0_30px_rgba(16,185,129,0.25)]',
+        badge: 'bg-emerald-950/50 text-cyber-emerald border-cyber-emerald/30',
+        avatarBg: 'from-cyber-emerald to-emerald-800 shadow-[0_0_15px_rgba(16,185,129,0.5)]',
+        button: 'bg-cyber-emerald/10 border-cyber-emerald/30 text-cyber-emerald hover:bg-cyber-emerald/20'
+      }
+    case 'cyber-pink':
+      return {
+        cardBg: 'bg-gradient-to-b from-[#240011]/85 via-[#0d0005]/95 to-black',
+        border: 'border-cyber-pink/40',
+        shadow: 'shadow-[0_0_30px_rgba(244,63,94,0.25)]',
+        badge: 'bg-pink-950/50 text-cyber-pink border-cyber-pink/30',
+        avatarBg: 'from-cyber-pink to-pink-800 shadow-[0_0_15px_rgba(244,63,94,0.5)]',
+        button: 'bg-cyber-pink/10 border-cyber-pink/30 text-cyber-pink hover:bg-cyber-pink/20'
+      }
+    case 'cyber-gold':
+      return {
+        cardBg: 'bg-gradient-to-b from-[#241700]/85 via-[#0d0800]/95 to-black',
+        border: 'border-amber-500/40',
+        shadow: 'shadow-[0_0_30px_rgba(245,158,11,0.25)]',
+        badge: 'bg-amber-950/50 text-amber-500 border-amber-500/30',
+        avatarBg: 'from-amber-500 to-amber-700 shadow-[0_0_15px_rgba(245,158,11,0.5)]',
+        button: 'bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20'
+      }
+    default:
+      return {
+        cardBg: 'bg-slate-950',
+        border: 'border-white/10',
+        shadow: 'shadow-2xl',
+        badge: 'bg-white/5 text-slate-400 border-white/10',
+        avatarBg: 'from-slate-700 to-slate-800 shadow-none',
+        button: 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+      }
+  }
+})
 
 // Restaurant Expense Form State
 const expAmount = ref(150000)
@@ -273,18 +337,79 @@ const handleSendTelegramTestMessage = async () => {
 }
 
 const handleCreateCard = async () => {
-  await cardStore.createCard({
+  if (!cardCompany.value || !cardPhone.value || !cardSlug.value) {
+    notifStore.addToast('Kompaniya nomi, telefon va slug kiritilishi shart!', 'error')
+    return
+  }
+
+  const socials = []
+  if (cardTelegram.value) socials.push({ platform: 'TELEGRAM' as const, username: cardTelegram.value })
+  if (cardFacebook.value) socials.push({ platform: 'FACEBOOK' as const, username: cardFacebook.value })
+  if (cardInstagram.value) socials.push({ platform: 'INSTAGRAM' as const, username: cardInstagram.value })
+  if (cardLinkedin.value) socials.push({ platform: 'LINKEDIN' as const, username: cardLinkedin.value })
+
+  const res = await cardStore.createCard({
     companyName: cardCompany.value,
     phone: cardPhone.value,
     serviceType: cardService.value,
     slug: cardSlug.value,
-    templateName: 'cyber-dark',
-    socials: [
-      { platform: 'TELEGRAM', username: cardSlug.value },
-      { platform: 'FACEBOOK', username: cardSlug.value }
-    ]
+    templateName: cardTemplate.value,
+    socials
   })
-  notifStore.addToast('Raqamli Vizitka yaratildi!', 'success')
+
+  if (res.success) {
+    notifStore.addToast('Raqamli Vizitka muvaffaqiyatli yaratildi!', 'success')
+  } else {
+    notifStore.addToast(res.message || 'Xatolik yuz berdi', 'error')
+  }
+}
+
+const handleUpdateCard = async () => {
+  if (!cardStore.activeCard) return
+  if (!cardCompany.value || !cardPhone.value || !cardSlug.value) {
+    notifStore.addToast('Kompaniya nomi, telefon va slug kiritilishi shart!', 'error')
+    return
+  }
+
+  const socials = []
+  if (cardTelegram.value) socials.push({ platform: 'TELEGRAM' as const, username: cardTelegram.value })
+  if (cardFacebook.value) socials.push({ platform: 'FACEBOOK' as const, username: cardFacebook.value })
+  if (cardInstagram.value) socials.push({ platform: 'INSTAGRAM' as const, username: cardInstagram.value })
+  if (cardLinkedin.value) socials.push({ platform: 'LINKEDIN' as const, username: cardLinkedin.value })
+
+  const res = await cardStore.updateCard(cardStore.activeCard.id, {
+    companyName: cardCompany.value,
+    phone: cardPhone.value,
+    serviceType: cardService.value,
+    slug: cardSlug.value,
+    templateName: cardTemplate.value,
+    socials
+  })
+
+  if (res.success) {
+    notifStore.addToast('Vizitka muvaffaqiyatli yangilandi!', 'success')
+  } else {
+    notifStore.addToast('Yangilashda xatolik yuz berdi', 'error')
+  }
+}
+
+const handleSelectCard = (card: any) => {
+  cardStore.activeCard = card
+  cardCompany.value = card.companyName
+  cardPhone.value = card.phone
+  cardService.value = card.serviceType
+  cardSlug.value = card.slug
+  cardTemplate.value = card.templateName || 'cyber-purple'
+  
+  // Extract socials
+  const tg = card.socials.find((s: any) => s.platform === 'TELEGRAM')
+  cardTelegram.value = tg ? tg.username : ''
+  const fb = card.socials.find((s: any) => s.platform === 'FACEBOOK')
+  cardFacebook.value = fb ? fb.username : ''
+  const inst = card.socials.find((s: any) => s.platform === 'INSTAGRAM')
+  cardInstagram.value = inst ? inst.username : ''
+  const li = card.socials.find((s: any) => s.platform === 'LINKEDIN')
+  cardLinkedin.value = li ? li.username : ''
 }
 
 const handleLessonComplete = (lessonId: string, courseId: string) => {
@@ -762,72 +887,215 @@ const handleDealStageChange = (dealId: string, stage: any) => {
 
         <!-- 2. BUSINESS CARD CONSTRUCTOR -->
         <div v-if="activeTab === 'bcard'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Card Builder Form -->
-          <GlassCard variant="purple">
-            <h2 class="text-xl font-bold font-outfit mb-4 text-cyber-purple">
-              🪪 Vizitka Konstruktori (Builder)
-            </h2>
-            <div class="space-y-4">
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Kompaniya nomi</label>
-                <input v-model="cardCompany" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm" />
+          <!-- Left side: Form + List -->
+          <div class="flex flex-col gap-6">
+            <!-- Card Builder Form -->
+            <GlassCard variant="purple">
+              <h2 class="text-xl font-bold font-outfit mb-4 text-cyber-purple flex justify-between items-center">
+                <span>🪪 Vizitka Konstruktori (Builder)</span>
+                <span v-if="cardStore.activeCard" class="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyber-cyan border border-cyber-cyan/30 font-bold">
+                  Tahrirlash rejimi
+                </span>
+              </h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Kompaniya nomi</label>
+                  <input v-model="cardCompany" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+                </div>
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Telefon raqam</label>
+                  <input v-model="cardPhone" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+                </div>
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Xizmat turi</label>
+                  <input v-model="cardService" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+                </div>
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Slug (URL uchun)</label>
+                  <input v-model="cardSlug" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-purple" />
+                  <p class="text-[10px] text-slate-500 mt-1 leading-relaxed text-left">
+                    ℹ️ <b>Slug (URL)</b> - vizitkaning internetdagi shaxsiy sahifa manzili. Masalan, <code>futurenet.uz/v/slug-nomi</code>. QR-kod shu havolaga yo'naltiriladi.
+                  </p>
+                </div>
+
+                <!-- Design Color Template Selector -->
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Dizayn rangini tanlang</label>
+                  <div class="grid grid-cols-5 gap-2">
+                    <button 
+                      v-for="t in [
+                        { id: 'cyber-purple', name: 'Purple', colorBg: 'bg-cyber-purple' },
+                        { id: 'cyber-cyan', name: 'Cyan', colorBg: 'bg-cyber-cyan' },
+                        { id: 'cyber-emerald', name: 'Green', colorBg: 'bg-cyber-emerald' },
+                        { id: 'cyber-pink', name: 'Pink', colorBg: 'bg-cyber-pink' },
+                        { id: 'cyber-gold', name: 'Gold', colorBg: 'bg-amber-500' }
+                      ]"
+                      :key="t.id"
+                      type="button"
+                      @click="cardTemplate = t.id"
+                      :class="[
+                        'p-1.5 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 hover:scale-105',
+                        cardTemplate === t.id
+                          ? 'border-white bg-white/10 text-white'
+                          : 'border-white/5 bg-black/40 text-slate-400'
+                      ]"
+                    >
+                      <span class="w-3 h-3 rounded-full" :class="t.colorBg"></span>
+                      <span>{{ t.name }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Social Media Links Input Section -->
+                <div class="border-t border-white/5 pt-3">
+                  <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Ijtimoiy tarmoqlar</label>
+                  <div class="grid grid-cols-2 gap-2 text-left">
+                    <div>
+                      <label class="block text-[9px] text-slate-500 uppercase mb-0.5">Telegram Username</label>
+                      <input v-model="cardTelegram" type="text" placeholder="Masalan: futurenet" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-purple" />
+                    </div>
+                    <div>
+                      <label class="block text-[9px] text-slate-500 uppercase mb-0.5">Facebook Page</label>
+                      <input v-model="cardFacebook" type="text" placeholder="Masalan: futurenet.uz" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-purple" />
+                    </div>
+                    <div>
+                      <label class="block text-[9px] text-slate-500 uppercase mb-0.5">Instagram User</label>
+                      <input v-model="cardInstagram" type="text" placeholder="Masalan: futurenet_ins" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-purple" />
+                    </div>
+                    <div>
+                      <label class="block text-[9px] text-slate-500 uppercase mb-0.5">LinkedIn Page</label>
+                      <input v-model="cardLinkedin" type="text" placeholder="Masalan: company/futurenet" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-purple" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex gap-2 border-t border-white/5 pt-3">
+                  <button @click="handleCreateCard" class="flex-1 py-2.5 rounded-lg bg-cyber-purple text-white font-bold hover:opacity-90 transition shadow-lg shadow-purple-500/20">
+                    Yangi Yaratish
+                  </button>
+                  <button 
+                    v-if="cardStore.activeCard"
+                    @click="handleUpdateCard" 
+                    class="flex-1 py-2.5 rounded-lg border border-cyber-cyan bg-cyber-cyan/10 text-cyber-cyan font-bold hover:bg-cyber-cyan/20 transition"
+                  >
+                    O'zgarishlarni Saqlash
+                  </button>
+                </div>
               </div>
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Telefon raqam</label>
-                <input v-model="cardPhone" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm" />
+            </GlassCard>
+
+            <!-- Yaratilgan Vizitkalar Ro'yxati -->
+            <GlassCard variant="purple" class="!bg-black/[0.15]">
+              <h3 class="text-sm font-bold font-outfit uppercase tracking-wider text-slate-300 mb-3 flex items-center justify-between">
+                <span>📂 Yaratilgan Vizitkalar Roʻyxati</span>
+                <span class="text-[10px] text-slate-500 font-normal">({{ cardStore.cards.length }} dona)</span>
+              </h3>
+              <div v-if="cardStore.cards.length === 0" class="text-xs text-slate-500 py-6 text-center border border-white/5 rounded-xl bg-white/[0.01]">
+                Hozircha vizitkalar yaratilmagan.
               </div>
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Xizmat turi</label>
-                <input v-model="cardService" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm" />
+              <div v-else class="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                <div 
+                  v-for="c in cardStore.cards" 
+                  :key="c.id"
+                  @click="handleSelectCard(c)"
+                  :class="[
+                    'p-3 rounded-xl border transition-all cursor-pointer text-left flex justify-between items-center',
+                    cardStore.activeCard?.id === c.id
+                      ? 'border-cyber-purple bg-cyber-purple/10 shadow-[0_0_15px_rgba(217,70,239,0.15)]'
+                      : 'border-white/5 bg-white/[0.01] hover:border-white/10 hover:bg-white/[0.03]'
+                  ]"
+                >
+                  <div>
+                    <h4 class="text-xs font-bold text-white">{{ c.companyName }}</h4>
+                    <p class="text-[10px] text-slate-400 mt-0.5">{{ c.serviceType }} | <code>/v/{{ c.slug }}</code></p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-950/40 text-cyber-purple border border-cyber-purple/20 uppercase">
+                      {{ c.templateName || 'cyber-purple' }}
+                    </span>
+                    <span class="text-[9px] text-slate-500" title="Yuklab olishlar soni">
+                      📥 {{ c.downloadCount }}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Slug (URL uchun)</label>
-                <input v-model="cardSlug" type="text" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm" />
-              </div>
-              
-              <button @click="handleCreateCard" class="w-full py-2.5 rounded-lg bg-cyber-purple text-white font-bold hover:opacity-90 transition">
-                Yaratish va QR Generator
-              </button>
-            </div>
-          </GlassCard>
+            </GlassCard>
+          </div>
 
           <!-- Vizitka Preview (Mobile-First) -->
-          <div class="flex flex-col items-center justify-center p-6 border border-white/5 rounded-2xl bg-black/50 relative overflow-hidden">
+          <div class="flex flex-col items-center justify-center p-6 border border-white/5 rounded-2xl bg-black/50 relative overflow-hidden h-fit self-start min-h-[580px]">
             <div class="absolute top-0 right-0 p-3 text-[10px] text-cyber-purple bg-purple-950/20 border-b border-l border-cyber-purple/20 rounded-bl-xl">
               QR Auto-Generated
             </div>
             
             <!-- Mobile Preview Frame -->
-            <div class="w-[300px] h-[550px] rounded-[36px] border-[6px] border-slate-800 bg-slate-950 shadow-2xl relative overflow-hidden flex flex-col justify-between p-6">
+            <div 
+              :class="[
+                'w-[300px] h-[550px] rounded-[36px] border-[6px] border-slate-800 shadow-2xl relative overflow-hidden flex flex-col justify-between p-6 transition-all duration-300',
+                templateClasses.cardBg,
+                templateClasses.border,
+                templateClasses.shadow
+              ]"
+            >
               <div class="text-center mt-6">
-                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-cyber-cyan to-cyber-purple mx-auto flex items-center justify-center text-2xl font-bold shadow-neon-purple">
-                  FN
+                <!-- Dynamic Avatar -->
+                <div 
+                  :class="[
+                    'w-16 h-16 rounded-full mx-auto flex items-center justify-center text-2xl font-bold text-white bg-gradient-to-tr transition-all duration-300',
+                    templateClasses.avatarBg
+                  ]"
+                >
+                  {{ cardCompany ? cardCompany.substring(0, 2).toUpperCase() : 'FN' }}
                 </div>
                 <h3 class="mt-4 font-bold text-white text-lg tracking-wide">{{ cardCompany }}</h3>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-purple-950/50 text-cyber-purple border border-cyber-purple/20">
+                <span 
+                  :class="[
+                    'text-xs px-2 py-0.5 rounded-full border transition-all duration-300',
+                    templateClasses.badge
+                  ]"
+                >
                   {{ cardService }}
                 </span>
               </div>
 
-              <!-- QR Code Card Box -->
-              <div class="bg-black/60 border border-white/10 p-4 rounded-xl text-center my-4">
-                <p class="text-[9px] uppercase tracking-wider text-slate-400 mb-2">QR skanerlash</p>
+              <!-- Social Links Grid inside Preview -->
+              <div v-if="cardTelegram || cardFacebook || cardInstagram || cardLinkedin" class="flex justify-center gap-2 mt-2">
+                <a v-if="cardTelegram" :href="'https://t.me/' + cardTelegram" target="_blank" class="w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300 hover:scale-110" :class="templateClasses.button" title="Telegram">
+                  <span class="text-[10px] font-bold">TG</span>
+                </a>
+                <a v-if="cardFacebook" :href="'https://facebook.com/' + cardFacebook" target="_blank" class="w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300 hover:scale-110" :class="templateClasses.button" title="Facebook">
+                  <span class="text-[10px] font-bold">FB</span>
+                </a>
+                <a v-if="cardInstagram" :href="'https://instagram.com/' + cardInstagram" target="_blank" class="w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300 hover:scale-110" :class="templateClasses.button" title="Instagram">
+                  <span class="text-[10px] font-bold">IG</span>
+                </a>
+                <a v-if="cardLinkedin" :href="'https://linkedin.com/in/' + cardLinkedin" target="_blank" class="w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300 hover:scale-110" :class="templateClasses.button" title="LinkedIn">
+                  <span class="text-[10px] font-bold">IN</span>
+                </a>
+              </div>
+
+              <!-- QR Code Box -->
+              <div class="bg-black/60 border border-white/10 p-4 rounded-xl text-center my-3">
+                <p class="text-[9px] uppercase tracking-wider text-slate-400 mb-1.5">QR skanerlash</p>
                 <img 
                   :src="`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://futurenet.uz/v/${cardSlug}`"
-                  class="w-32 h-32 mx-auto rounded border border-white/20 p-1 bg-white" 
+                  class="w-28 h-28 mx-auto rounded border border-white/20 p-1 bg-white" 
                   alt="QR Code"
                 />
                 <button 
-                  @click="cardStore.recordQrDownload('card-1')"
-                  class="mt-3 text-[10px] px-3 py-1 rounded bg-cyber-purple/20 hover:bg-cyber-purple/40 text-cyber-purple border border-cyber-purple/30 w-full transition"
+                  @click="cardStore.recordQrDownload(cardStore.activeCard?.id || 'card-1')"
+                  :class="[
+                    'mt-2.5 text-[10px] px-3 py-1 rounded border w-full font-bold transition-all duration-300',
+                    templateClasses.button
+                  ]"
                 >
-                  QR Yuklash (Download)
+                  QR Yuklash (Download) {{ cardStore.activeCard ? `(${cardStore.activeCard.downloadCount})` : '' }}
                 </button>
               </div>
 
-              <div class="text-center text-[10px] text-slate-500 mb-4">
+              <div class="text-center text-[10px] text-slate-400 mb-4">
                 <p>Tel: {{ cardPhone }}</p>
-                <p class="mt-1">Telegram: @{{ cardSlug }}</p>
+                <p v-if="cardTelegram" class="mt-1">Telegram: @{{ cardTelegram }}</p>
               </div>
             </div>
           </div>
