@@ -1,0 +1,109 @@
+/* Tailwind v4 CSS-first Configuration & Theme */
+@import "tailwindcss";
+
+@theme {
+  --color-cyber-bg: #030008;
+  --color-cyber-cyan: #00f0ff;
+  --color-cyber-purple: #bd00ff;
+  --color-cyber-emerald: #00ff66;
+  --color-cyber-pink: #ff007a;
+  --color-cyber-dark-card: rgba(12, 5, 23, 0.65);
+
+  --shadow-neon-cyan: 0 0 15px rgba(0, 240, 255, 0.4), inset 0 0 15px rgba(0, 240, 255, 0.1);
+  --shadow-neon-purple: 0 0 15px rgba(189, 0, 255, 0.4), inset 0 0 15px rgba(189, 0, 255, 0.1);
+  --shadow-neon-emerald: 0 0 15px rgba(0, 255, 102, 0.4), inset 0 0 15px rgba(0, 255, 102, 0.1);
+  --shadow-neon-pink: 0 0 15px rgba(255, 0, 122, 0.4), inset 0 0 15px rgba(255, 0, 122, 0.1);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+  --animate-neon-pulse: neonGlow 2s infinite alternate;
+  --animate-cyber-scan: scanline 6s linear infinite;
+
+  @keyframes neonGlow {
+    0% { box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
+    100% { box-shadow: 0 0 25px rgba(0, 240, 255, 0.6); }
+  }
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+  }
+}
+
+/* Base style resets & Cyberpunk custom scrollbars */
+@layer base {
+  body {
+    background-color: var(--color-cyber-bg);
+    color: #e2e8f0;
+    font-family: 'Inter', 'Outfit', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(12, 5, 23, 0.5);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-cyber-purple);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-cyber-cyan);
+    box-shadow: 0 0 8px var(--color-cyber-cyan);
+  }
+}
+
+/* Glassmorphism custom classes */
+.cyber-glass {
+  background: rgba(12, 5, 23, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cyber-glass-cyan {
+  background: rgba(6, 18, 30, 0.65);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.cyber-glass-purple {
+  background: rgba(22, 5, 36, 0.65);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(189, 0, 255, 0.2);
+}
+
+.cyber-glass-emerald {
+  background: rgba(4, 25, 16, 0.65);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 255, 102, 0.2);
+}
+
+/* Grid overlay background to complete cyberpunk vibe */
+.cyber-grid-overlay {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+/* Cyber scanline overlay animation */
+.cyber-scanline {
+  position: relative;
+  overflow: hidden;
+}
+
+.cyber-scanline::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 240, 255, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 2;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
