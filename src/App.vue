@@ -541,6 +541,47 @@ const handleDealStageChange = (dealId: string, stage: any) => {
                 <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400 mb-3">Yangi Eslatma Oʻrnatish</h3>
                 
                 <div class="space-y-3">
+                  <!-- Telegram Bot Settings (Real Telegram Messages) -->
+                  <div class="border border-cyan-500/20 bg-cyan-950/10 rounded-xl p-3">
+                    <details class="group">
+                      <summary class="text-xs font-bold text-cyber-cyan cursor-pointer flex justify-between items-center select-none outline-none">
+                        <span>⚙️ Real Telegram Bot Sozlamalari</span>
+                        <span class="text-[9px] text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                      </summary>
+                      
+                      <div class="space-y-2.5 mt-3 pt-2.5 border-t border-white/5">
+                        <p class="text-[10px] text-slate-400 leading-relaxed">
+                          Haqiqiy Telegram xabarnomalarini olish uchun o'zingizning botingizni ulashingiz mumkin.
+                        </p>
+                        <div>
+                          <label class="block text-[9px] text-slate-500 uppercase tracking-wider mb-1">Bot Token</label>
+                          <input 
+                            v-model="personalStore.telegramBotToken" 
+                            @input="personalStore.setTelegramSettings(personalStore.telegramBotToken, personalStore.telegramChatId)"
+                            type="password" 
+                            placeholder="123456789:ABC..."
+                            class="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-[9px] text-slate-500 uppercase tracking-wider mb-1">Telegram Chat ID (Raqamlarda)</label>
+                          <input 
+                            v-model="personalStore.telegramChatId" 
+                            @input="personalStore.setTelegramSettings(personalStore.telegramBotToken, personalStore.telegramChatId)"
+                            type="text" 
+                            placeholder="Masalan: 987654321"
+                            class="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyber-cyan"
+                          />
+                        </div>
+                        <div class="text-[9px] text-slate-500 leading-relaxed border-t border-white/5 pt-2">
+                          💡 <b>Qanday faollashtiriladi:</b><br/>
+                          1. Telegramda <a href="https://t.me/BotFather" target="_blank" class="text-cyber-cyan hover:underline">@BotFather</a> orqali yangi bot oching va <b>Token</b>ni kiriting.<br/>
+                          2. Botingizga kirib <b>/start</b> buyrug'ini bering.<br/>
+                          3. <a href="https://t.me/userinfobot" target="_blank" class="text-cyber-cyan hover:underline">@userinfobot</a> botiga xabar yuborib <b>Chat ID</b>'ingizni oling va kiriting.
+                        </div>
+                      </div>
+                    </details>
+                  </div>
                   <!-- Channel selector -->
                   <div>
                     <label class="block text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Xabarnoma Kanali</label>

@@ -104,6 +104,16 @@ export const usePersonalStore = defineStore('personal', () => {
     }
   }
 
+  const telegramBotToken = ref(localStorage.getItem('fn_tg_token') || '')
+  const telegramChatId = ref(localStorage.getItem('fn_tg_chat_id') || '')
+
+  const setTelegramSettings = (token: string, chatId: string) => {
+    telegramBotToken.value = token
+    telegramChatId.value = chatId
+    localStorage.setItem('fn_tg_token', token)
+    localStorage.setItem('fn_tg_chat_id', chatId)
+  }
+
   const addReminder = async (newReminder: Omit<Reminder, 'id' | 'isTriggered'>) => {
     try {
       const reminder: Reminder = {
@@ -111,8 +121,38 @@ export const usePersonalStore = defineStore('personal', () => {
         id: Math.random().toString(36).substring(2, 9),
         isTriggered: false
       }
-      reminders.value.push(reminder)
-      // Redis + Cron worker uchun API call bo'ladi bu yerda
+      reminders.value.unshift(reminder)
+      
+      // Redis & Cron simulyatsiyasi (setTimeout yordamida)
+      const triggerTimeMs = new Date(reminder.triggerTime).getTime()
+      const nowMs = Date.now()
+      const delay = Math.max(0, triggerTimeMs - nowMs)
+
+      setTimeout(async () => {
+        const found = reminders.value.find(r => r.id === reminder.id)
+        if (found) found.isTriggered = true
+
+        // Real Telegram notification delivery
+        if (reminder.channel === 'TELEGRAM' && telegramBotToken.value && telegramChatId.value) {
+          try {
+            const url = `https://api.telegram.org/bot${telegramBotToken.value}/sendMessage`
+            const textMessage = `🔔 *FUTURE NET ESMATMA*:\n\n📌 *${reminder.title}*\n📝 ${reminder.message || ''}`
+            
+            await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: telegramChatId.value,
+                text: textMessage,
+                parse_mode: 'Markdown'
+              })
+            })
+          } catch (err) {
+            console.error('Telegram API error:', err)
+          }
+        }
+      }, delay)
+
       return { success: true, reminder }
     } catch (error) {
       return { success: false }
@@ -150,6 +190,9 @@ export const usePersonalStore = defineStore('personal', () => {
     reminders,
     newsFeed,
     isLoading,
+    telegramBotToken,
+    telegramChatId,
+    setTelegramSettings,
     upcomingSchedules,
     activeReminders,
     fetchSchedules,
